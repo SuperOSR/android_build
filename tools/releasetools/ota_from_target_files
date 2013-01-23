@@ -420,8 +420,10 @@ def WriteFullOTAPackage(input_zip, output_zip):
     WritePolicyConfig(OPTIONS.info_dict["selinux_fc"], output_zip)
 
   script.Print("Formatting system")
+  script.Unmount("/system")
   script.FormatPartition("/system")
   script.Mount("/system")
+  #script.UnpackPackageDir("recovery", "/system")
   script.Print("Installing SuperOSR")
   script.UnpackPackageDir("system", "/system")
 
