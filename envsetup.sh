@@ -186,7 +186,11 @@ function setpaths()
     fi
 
     unset ANDROID_PRODUCT_OUT
+    unset PRODUCT_ROM_FILE
+    unset ALIAS
     export ANDROID_PRODUCT_OUT=$(get_abs_build_var PRODUCT_OUT)
+    export PRODUCT_ROM_FILE=$(get_build_var PRODUCT_ROM_FILE)
+    export ALIAS=$(get_build_var ALIAS)
     export OUT=$ANDROID_PRODUCT_OUT
 
     unset ANDROID_HOST_OUT
@@ -199,6 +203,13 @@ function setpaths()
     # needed for building linux on MacOS
     # TODO: fix the path
     #export HOST_EXTRACFLAGS="-I "$T/system/kernel_headers/host_include
+    # Regenerated  build.prop
+	echo "Directory of output for Rom..."
+	echo $ANDROID_PRODUCT_OUT
+	if [ -f $ANDROID_PRODUCT_OUT/system/build.prop ]; then
+	    echo "Deleting build.prop obsolete..."
+   	    rm  $ANDROID_PRODUCT_OUT/system/build.prop
+	fi
 }
 
 function printconfig()
