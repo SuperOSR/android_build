@@ -38,6 +38,34 @@ if not depsonly:
 
 repositories = []
 
+try:
+    authtuple = netrc.netrc().authenticators("api.github.com")
+
+    if authtuple:
+        githubauth = base64.encodestring('%s:%s' % (authtuple[0], authtuple[2])).replace('\n', '')
+    else:
+        githubauth = None
+except:
+    githubauth = None
+
+def add_auth(githubreq):
+    if githubauth:
+        githubreq.add_header("Authorization","Basic %s" % githubauth)
+
+page = 1
+while not depsonly:
+    githubreq = urllib2.Request("https://api.github.com/users/CyanogenMod/repos?per_page=100&page=%d" % page)
+    add_auth(githubreq)
+    result = json.loads(urllib2.urlopen(githubreq).read())
+    if len(result) == 0:
+        break
+    for res in result:
+        repositories.append(res)
+    page = page + 1
+
+local_manifests = r'.repo/local_manifests'
+if not os.path.exists(local_manifests): os.makedirs(local_manifests)
+
 def exists_in_tree(lm, repository):
     for child in lm.getchildren():
         if child.attrib['name'].endswith(repository):
@@ -62,7 +90,7 @@ def indent(elem, level=0):
 
 def get_from_manifest(devicename):
     try:
-        lm = ElementTree.parse(".repo/local_manifest.xml")
+        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -112,7 +140,7 @@ def get_from_device_manifest(devicename):
 
 def is_in_manifest(projectname):
     try:
-        lm = ElementTree.parse(".repo/local_manifest.xml")
+        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -133,7 +161,7 @@ def add_to_manifest(repositories):
 
     # Local Manifest
     try:
-        lm = ElementTree.parse(".repo/local_manifest.xml")
+        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -179,7 +207,7 @@ def add_to_manifest(repositories):
     raw_xml = ElementTree.tostring(lm)
     raw_xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + raw_xml
 
-    f = open('.repo/local_manifest.xml', 'w')
+    f = open('.repo/local_manifests/roomservice.xml', 'w')
     f.write(raw_xml)
     f.close()
 
@@ -278,4 +306,4 @@ else:
             print "Done"
             sys.exit()
 
-print "Repository for %s not found in the CyanogenMod Github repository list. If this is in error, you may need to manually add it to your local_manifest.xml." % device
+print "Repository for %s not found in the CyanogenMod Github repository list. If this is in error, you may need to manually add it to your local_manifests/roomservice.xml." % device
