@@ -228,8 +228,6 @@ function set_stuff_for_environment()
     set_java_home
     setpaths
     set_sequence_number
-
-    export ANDROID_BUILD_TOP=$(gettop)
 }
 
 function set_sequence_number()
@@ -281,13 +279,15 @@ function addcompletions()
         return
     fi
 
-    dir="sdk/bash_completion"
+    dirs="sdk/bash_completion vendor/cm/bash_completion"
+    for dir in $dirs; do
     if [ -d ${dir} ]; then
         for f in `/bin/ls ${dir}/[a-z]*.bash 2> /dev/null`; do
             echo "including $f"
             . $f
         done
     fi
+    done
 }
 
 function choosetype()
@@ -704,12 +704,21 @@ function eat()
         adb root
         sleep 1
         adb wait-for-device
-        echo "Pushing $ZIPFILE to device"
-        if adb push $ZIPPATH /storage/sdcard0/ ; then
-            # Optional path for sdcard0 in recovery
-            [ -z "$1" ] && DIR=sdcard || DIR=$1
+        SZ=`stat -c %s $ZIPPATH`
+        CACHESIZE=`adb shell busybox df -PB1 /cache | grep /cache | tr -s ' ' | cut -d ' ' -f 4`
+        if [ $CACHESIZE -gt $SZ ];
+        then
+            PUSHDIR=/cache/
+            DIR=cache
+        else
+            PUSHDIR=/storage/sdcard0/
+             # Optional path for sdcard0 in recovery
+             [ -z "$1" ] && DIR=sdcard/0 || DIR=$1
+        fi
+        echo "Pushing $ZIPFILE to $PUSHDIR"
+        if adb push $ZIPPATH $PUSHDIR ; then
             cat << EOF > /tmp/command
---update_package=/$DIR/0/$ZIPFILE
+--update_package=/$DIR/$ZIPFILE
 EOF
             if adb push /tmp/command /cache/recovery/ ; then
                 echo "Rebooting into recovery for installation"
@@ -1870,3 +1879,5 @@ done
 unset f
 
 addcompletions
+
+export ANDROID_BUILD_TOP=$(gettop)

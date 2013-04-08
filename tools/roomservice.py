@@ -88,6 +88,12 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
+def get_default_revision():
+    m = ElementTree.parse(".repo/manifest.xml")
+    d = m.findall('default')[0]
+    r = d.get('revision')
+    return r.split('/')[-1]
+
 def get_from_manifest(devicename):
     try:
         lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
@@ -293,7 +299,20 @@ else:
         if repo_name.startswith("android_device_") and repo_name.endswith("_" + device):
             print "Found repository: %s" % repository['name']
             manufacturer = repo_name.replace("android_device_", "").replace("_" + device, "")
+            
+            default_revision = get_default_revision()
+            print "Default revision: %s" % default_revision
+            print "Checking branch info"
+            githubreq = urllib2.Request(repository['branches_url'].replace('{/branch}', ''))
+            add_auth(githubreq)
+            result = json.loads(urllib2.urlopen(githubreq).read())
 
+            ## Try tags, too, since that's what releases use
+            if not has_branch(result, default_revision):
+                githubreq = urllib2.Request(repository['tags_url'].replace('{/tag}', ''))
+                add_auth(githubreq)
+                result.extend (json.loads(urllib2.urlopen(githubreq).read()))
+            
             repo_path = "device/%s/%s" % (manufacturer, device)
 
             add_to_manifest([{'repository':"CyanogenMod/%s" % repo_name,'target_path':repo_path}])
