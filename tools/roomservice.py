@@ -13,29 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
-
-import base64
-import json
-import netrc
 import os
-import re
 import sys
-try:
-  # For python3
-  import urllib.error
-  import urllib.parse
-  import urllib.request
-except ImportError:
-  # For python2
-  import imp
-  import urllib2
-  import urlparse
-  urllib = imp.new_module('urllib')
-  urllib.error = urllib2
-  urllib.parse = urlparse
-  urllib.request = urllib2
-
+import urllib2
+import json
+import re
 from xml.etree import ElementTree
 
 product = sys.argv[1];
@@ -51,7 +33,7 @@ except:
     device = product
 
 if not depsonly:
-    print("Device %s not found. Attempting to retrieve device repository:" % device)
+    print "Device %s not found. Attempting to retrieve device repository:" % device
 
 repositories = []
 
@@ -79,7 +61,7 @@ def indent(elem, level=0):
 
 def get_from_manifest(devicename):
     try:
-        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
+        lm = ElementTree.parse(".repo/local_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -129,7 +111,7 @@ def get_from_device_manifest(devicename):
 
 def is_in_manifest(projectname):
     try:
-        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
+        lm = ElementTree.parse(".repo/local_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -150,7 +132,7 @@ def add_to_manifest(repositories):
 
     # Local Manifest
     try:
-        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
+        lm = ElementTree.parse(".repo/local_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -160,8 +142,8 @@ def add_to_manifest(repositories):
         repo_target = repository['target_path']
         mmproj = get_project_from_path_in_manifest(repo_target)
         if mmproj != None:
-            print('Found %s already defined in main manifest as %s' % (repo_target, mmproj.get("name")))
-            print('Adding remove-project: %s -> %s' % (mmproj.get("name"), repo_target))
+            print 'Found %s already defined in main manifest as %s' % (repo_target, mmproj.get("name"))
+            print 'Adding remove-project: %s -> %s' % (mmproj.get("name"), repo_target)
             project = ElementTree.Element("remove-project", attrib = { "path": repo_target,
                 "remote": "github", "name": mmproj.get("name"), "revision": "jb43" })
 
@@ -174,10 +156,10 @@ def add_to_manifest(repositories):
             lm.append(project)
 
         if exists_in_tree(lm, repo_name):
-            print ('%s already exists' % (repo_name))
+            print '%s already exists' % (repo_name)
             continue
 
-        print('Adding dependency: %s -> %s' % (repo_name, repo_target))
+        print 'Adding dependency: %s -> %s' % (repo_name, repo_target)
         project = ElementTree.Element("project", attrib = { "path": repo_target,
             "remote": "github", "name": repo_name, "revision": "jb43" })
 
@@ -196,22 +178,22 @@ def add_to_manifest(repositories):
     raw_xml = ElementTree.tostring(lm)
     raw_xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + raw_xml
 
-    f = open('.repo/local_manifests/roomservice.xml', 'w')
+    f = open('.repo/local_manifest.xml', 'w')
     f.write(raw_xml)
     f.close()
 
 def fetch_dependencies(repo_path):
-    print('Looking for dependencies')
+    print 'Looking for dependencies'
 
     syncable_repos = []
 
     dependencies_path = repo_path + '/osr.dependencies'
     if not os.path.exists(dependencies_path):
-        print('No osr.dependencies file in %s' % repo_path)
+        print 'No osr.dependencies file in %s' % repo_path
         dependencies_path = repo_path + '/cm.dependencies'
 
     if os.path.exists(dependencies_path):
-        print('Using %s' % dependencies_path)
+        print 'Using %s' % dependencies_path
         dependencies_file = open(dependencies_path, 'r')
         dependencies = json.loads(dependencies_file.read())
 
@@ -229,13 +211,13 @@ def fetch_dependencies(repo_path):
         dependencies_file.close()
 
         if len(fetch_list) > 0:
-            print('Adding dependencies to manifest')
+            print 'Adding dependencies to manifest'
             add_to_manifest(fetch_list)
     else:
-        print('Dependencies file not found, bailing out.')
+        print 'Dependencies file not found, bailing out.'
 
     if len(syncable_repos) > 0:
-        print('Syncing dependencies')
+        print 'Syncing dependencies'
         os.system('repo sync %s' % ' '.join(syncable_repos))
 
 if depsonly:
@@ -243,7 +225,7 @@ if depsonly:
     if repo_path:
         fetch_dependencies(repo_path)
     else:
-        print("Trying dependencies-only mode on a non-existing device tree?")
+        print "Trying dependencies-only mode on a non-existing device tree?"
 
     sys.exit()
 
@@ -254,20 +236,20 @@ else:
         repo_path = obj.get("path")
         repo_name = obj.get("name")
 
-        print("Found repository in devices.xml: %s" % repo_name)
+        print "Found repository in devices.xml: %s" % repo_name
 
         add_to_manifest([{'repository':repo_name,'target_path':repo_path}])
 
-        print("Syncing repository to retrieve project.")
+        print "Syncing repository to retrieve project."
         os.system('repo sync %s' % repo_path)
-        print("Repository synced!")
+        print "Repository synced!"
 
         fetch_dependencies(repo_path)
-        print("Done")
+        print "Done"
         sys.exit()
 
-    print("Not found in android/devices.xml (Check and try repo sync android, then rerun lunch)")
-    print("Searching at CyanogenMod")
+    print "Not found in android/devices.xml (Check and try repo sync android, then rerun lunch)"
+    print "Searching at CyanogenMod"
     page = 1
     while not depsonly:
         result = json.loads(urllib2.urlopen("https://api.github.com/users/CyanogenMod/repos?page=%d" % page).read())
@@ -280,19 +262,19 @@ else:
     for repository in repositories:
         repo_name = repository['name']
         if repo_name.startswith("android_device_") and repo_name.endswith("_" + device):
-            print("Found repository: %s" % repository['name'])
+            print "Found repository: %s" % repository['name']
             manufacturer = repo_name.replace("android_device_", "").replace("_" + device, "")
 
             repo_path = "device/%s/%s" % (manufacturer, device)
 
             add_to_manifest([{'repository':"CyanogenMod/%s" % repo_name,'target_path':repo_path}])
 
-            print("Syncing repository to retrieve project.")
+            print "Syncing repository to retrieve project."
             os.system('repo sync %s' % repo_path)
-            print("Repository synced!")
+            print "Repository synced!"
 
             fetch_dependencies(repo_path)
-            print("Done")
+            print "Done"
             sys.exit()
 
-print("Repository for %s not found in the CyanogenMod Github repository list. If this is in error, you may need to manually add it to your local_manifests/roomservice.xml." % device)
+print "Repository for %s not found in the CyanogenMod Github repository list. If this is in error, you may need to manually add it to your local_manifest.xml." % device
