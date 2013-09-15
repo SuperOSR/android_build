@@ -37,6 +37,9 @@ if not depsonly:
 
 repositories = []
 
+local_manifests = r'.repo/local_manifests'
+if not os.path.exists(local_manifests): os.makedirs(local_manifests)
+
 def exists_in_tree(lm, repository):
     for child in lm.getchildren():
         if child.attrib['name'].endswith(repository):
@@ -61,7 +64,7 @@ def indent(elem, level=0):
 
 def get_from_manifest(devicename):
     try:
-        lm = ElementTree.parse(".repo/local_manifest.xml")
+        lm = ElementTree.parse(".repo/local_manifests/local_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -111,7 +114,7 @@ def get_from_device_manifest(devicename):
 
 def is_in_manifest(projectname):
     try:
-        lm = ElementTree.parse(".repo/local_manifest.xml")
+        lm = ElementTree.parse(".repo/local_manifests/local_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -125,14 +128,14 @@ def is_in_manifest(projectname):
 def add_to_manifest(repositories):
     # Main Manifest
     try:
-        mm = ElementTree.parse(".repo/local_manifest.xml")
+        mm = ElementTree.parse(".repo/local_manifests/local_manifest.xml")
         mm = mm.getroot()
     except:
         mm = ElementTree.Element("manifest")
 
     # Local Manifest
     try:
-        lm = ElementTree.parse(".repo/local_manifest.xml")
+        lm = ElementTree.parse(".repo/local_manifests/local_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -178,7 +181,7 @@ def add_to_manifest(repositories):
     raw_xml = ElementTree.tostring(lm)
     raw_xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + raw_xml
 
-    f = open('.repo/local_manifest.xml', 'w')
+    f = open('.repo/local_manifests/local_manifest.xml', 'w')
     f.write(raw_xml)
     f.close()
 
