@@ -239,9 +239,17 @@ else:
         repo_path = obj.get("path")
         repo_name = obj.get("name")
 
+        p = {'repository':repo_name,'target_path':repo_path}
+
+        if obj.get("revision")!=None:
+            p['revision']=obj.get("revision")
+
+        if obj.get("remote")!=None:
+            p['remote']=obj.get("remote")
+
         print "Found repository in devices.xml: %s" % repo_name
 
-        add_to_manifest([{'repository':repo_name,'target_path':repo_path}])
+        add_to_manifest([ p ])
 
         print "Syncing repository to retrieve project."
         os.system('repo sync %s' % repo_path)
