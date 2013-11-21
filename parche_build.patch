@@ -1,0 +1,377 @@
+project build/
+diff --git a/core/Makefile b/core/Makefile
+index a25d80f..31a8e88 100644
+--- a/core/Makefile
++++ b/core/Makefile
+@@ -655,8 +655,10 @@ $(INSTALLED_RECOVERYIMAGE_TARGET): $(MKBOOTFS) $(MKBOOTIMG) $(MINIGZIP) \
+ 	$(hide) cp -R $(TARGET_ROOT_OUT) $(TARGET_RECOVERY_OUT)
+ 	@echo Modifying ramdisk contents...
+ 	$(hide) rm -f $(TARGET_RECOVERY_ROOT_OUT)/init*.rc
++	$(hide) rm -f $(TARGET_RECOVERY_ROOT_OUT)/initlogo.rle
+ 	$(hide) cp -f $(recovery_initrc) $(TARGET_RECOVERY_ROOT_OUT)/
+ 	$(hide) -cp $(TARGET_ROOT_OUT)/init.recovery.*.rc $(TARGET_RECOVERY_ROOT_OUT)/
++	$(hide) cp -f $(PRODUCT_OUT)/obj/*.ko $(TARGET_RECOVERY_ROOT_OUT)/
+ 	$(hide) cp -f $(recovery_binary) $(TARGET_RECOVERY_ROOT_OUT)/sbin/
+ 	$(hide) cp -rf $(recovery_resources_common) $(TARGET_RECOVERY_ROOT_OUT)/
+ 	$(hide) $(foreach item,$(recovery_resources_private), \
+@@ -1040,7 +1042,15 @@ built_ota_tools := \
+ 	$(call intermediates-dir-for,EXECUTABLES,check_prereq)/check_prereq \
+ 	$(call intermediates-dir-for,EXECUTABLES,sqlite3)/sqlite3 \
+ 	$(call intermediates-dir-for,EXECUTABLES,updater)/updater
++#uboot_ota := \
++#    $(PRODUCT_OUT)/bootloader \
++#    $(PRODUCT_OUT)/bootloader.fex \
++#    $(PRODUCT_OUT)/env.fex \
++#    $(PRODUCT_OUT)/boot0_nand.bin \
++#    $(PRODUCT_OUT)/boot1_nand.fex
++    
+ $(BUILT_TARGET_FILES_PACKAGE): PRIVATE_OTA_TOOLS := $(built_ota_tools)
++#$(BUILT_TARGET_FILES_PACKAGE): PRIVATE_OTA_UBOOT := $(uboot_ota)
+ 
+ $(BUILT_TARGET_FILES_PACKAGE): PRIVATE_RECOVERY_API_VERSION := $(RECOVERY_API_VERSION)
+ 
+@@ -1121,6 +1131,7 @@ endif
+ 	$(hide) mkdir -p $(zip_root)/OTA/bin
+ 	$(hide) $(ACP) $(INSTALLED_ANDROID_INFO_TXT_TARGET) $(zip_root)/OTA/
+ 	$(hide) $(ACP) $(PRIVATE_OTA_TOOLS) $(zip_root)/OTA/bin/
++	#$(hide) $(ACP) -r $(PRIVATE_OTA_UBOOT) $(zip_root)/
+ 	@# Files that do not end up in any images, but are necessary to
+ 	@# build them.
+ 	$(hide) mkdir -p $(zip_root)/META
+@@ -1183,6 +1194,31 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
+ .PHONY: otapackage
+ otapackage: $(INTERNAL_OTA_PACKAGE_TARGET)
+ 
++
++# -----------------------------------------------------------------
++# OTA update package from old_target_files.zip
++
++name := $(TARGET_PRODUCT)
++ifeq ($(TARGET_BUILD_TYPE),debug)
++  name := $(name)_debug
++endif
++name := $(name)-ota-$(FILE_NAME_TAG)-inc
++
++INTERNAL_OTA_PACKAGE_TARGET_INC := $(PRODUCT_OUT)/$(name).zip
++
++$(INTERNAL_OTA_PACKAGE_TARGET_INC): KEY_CERT_PAIR := $(DEFAULT_KEY_CERT_PAIR)
++
++$(INTERNAL_OTA_PACKAGE_TARGET_INC): $(BUILT_TARGET_FILES_PACKAGE) $(OTATOOLS)
++	@echo "Package OTA: $@"
++	$(hide) ./build/tools/releasetools/ota_from_target_files -v \
++	   -p $(HOST_OUT) \
++           -k $(KEY_CERT_PAIR) \
++			-i ./old_target_files.zip \
++           $(BUILT_TARGET_FILES_PACKAGE) $@
++
++.PHONY: otapackage_inc
++otapackage_inc: $(INTERNAL_OTA_PACKAGE_TARGET_INC)
++
+ # -----------------------------------------------------------------
+ # The update package
+ 
+diff --git a/core/pathmap.mk b/core/pathmap.mk
+index 4aec521..eebbd4b 100644
+--- a/core/pathmap.mk
++++ b/core/pathmap.mk
+@@ -98,6 +98,7 @@ FRAMEWORKS_BASE_SUBDIRS := \
+ 	    keystore \
+ 	    icu4j \
+ 	    voip \
++	    ethernet \
+ 	 )
+ 
+ #
+diff --git a/envsetup.sh b/envsetup.sh
+index b57a272..9446a4d 100644
+--- a/envsetup.sh
++++ b/envsetup.sh
+@@ -154,8 +154,8 @@ function setpaths()
+     export ANDROID_TOOLCHAIN=$ANDROID_EABI_TOOLCHAIN
+     export ANDROID_QTOOLS=$T/development/emulator/qtools
+     export ANDROID_DEV_SCRIPTS=$T/development/scripts
+-    export ANDROID_BUILD_PATHS=$(get_build_var ANDROID_BUILD_PATHS):$ANDROID_QTOOLS:$ANDROID_TOOLCHAIN$ARM_EABI_TOOLCHAIN_PATH$CODE_REVIEWS:$ANDROID_DEV_SCRIPTS:
+-    export PATH=$ANDROID_BUILD_PATHS$PATH
++    export ANDROID_BUILD_PATHS=$(get_build_var ANDROID_BUILD_PATHS):$ANDROID_QTOOLS:$ANDROID_TOOLCHAIN$ARM_EABI_TOOLCHAIN_PATH$CODE_REVIEWS:$ANDROID_DEV_SCRIPTS
++    export PATH=$PATH:$ANDROID_BUILD_PATHS
+ 
+     unset ANDROID_JAVA_TOOLCHAIN
+     unset ANDROID_PRE_BUILD_PATHS
+@@ -172,6 +172,8 @@ function setpaths()
+     unset ANDROID_HOST_OUT
+     export ANDROID_HOST_OUT=$(get_abs_build_var HOST_OUT)
+ 
++	tdevice=$(get_build_var TARGET_DEVICE)
++	export DEVICE=$T/device/*/$tdevice
+     # needed for processing samples collected by perf counters
+     unset OPROFILE_EVENTS_DIR
+     export OPROFILE_EVENTS_DIR=$T/external/oprofile/events
+diff --git a/target/product/generic_no_telephony.mk b/target/product/generic_no_telephony.mk
+index f139cbd..5bdc596 100644
+--- a/target/product/generic_no_telephony.mk
++++ b/target/product/generic_no_telephony.mk
+@@ -26,7 +26,7 @@ PRODUCT_PACKAGES := \
+     Calendar \
+     CertInstaller \
+     DrmProvider \
+-    Email2 \
++    Email \
+     Exchange2 \
+     FusedLocation \
+     Gallery2 \
+diff --git a/tools/releasetools/common.py b/tools/releasetools/common.py
+index 127784d..0482842 100644
+--- a/tools/releasetools/common.py
++++ b/tools/releasetools/common.py
+@@ -297,7 +297,13 @@ def GetBootableImage(name, prebuilt_name, unpack_dir, tree_subdir,
+                                          os.path.join(unpack_dir, fs_config),
+                                          info_dict))
+ 
+-
++def GetUbootFex(name,path):
++    print "  building fex from target_files %s..." %(path)
++    fex=open(path)
++    data=fex.read()
++    fex.close()
++    return File(name,data)
++    
+ def UnzipTemp(filename, pattern=None):
+   """Unzip the given archive into a temporary directory and return the name.
+ 
+@@ -866,7 +872,7 @@ def ComputeDifferences(diffs):
+ 
+ # map recovery.fstab's fs_types to mount/format "partition types"
+ PARTITION_TYPES = { "yaffs2": "MTD", "mtd": "MTD",
+-                    "ext4": "EMMC", "emmc": "EMMC" }
++                    "ext4": "EMMC", "emmc": "EMMC","vfat": "EMMC" }
+ 
+ def GetTypeAndDevice(mount_point, info):
+   fstab = info["fstab"]
+diff --git a/tools/releasetools/edify_generator.py b/tools/releasetools/edify_generator.py
+index 5672b5a..d4bdcae 100644
+--- a/tools/releasetools/edify_generator.py
++++ b/tools/releasetools/edify_generator.py
+@@ -207,7 +207,9 @@ class EdifyGenerator(object):
+             'package_extract_file("%(fn)s", "%(device)s");' % args)
+       else:
+         raise ValueError("don't know how to write \"%s\" partitions" % (p.fs_type,))
+-
++  def WriteRawFex(self,mount_point,fn):
++     self.script.append(
++       'package_extract_file("%s","%s");'%(fn,mount_point))
+   def SetPermissions(self, fn, uid, gid, mode):
+     """Set file ownership and permissions."""
+     self.script.append('set_perm(%d, %d, 0%o, "%s");' % (uid, gid, mode, fn))
+diff --git a/tools/releasetools/ota_from_target_files b/tools/releasetools/ota_from_target_files
+index 170f5b3..d014965 100755
+--- a/tools/releasetools/ota_from_target_files
++++ b/tools/releasetools/ota_from_target_files
+@@ -403,7 +403,7 @@ def WriteFullOTAPackage(input_zip, output_zip):
+ 
+   script.FormatPartition("/system")
+   script.Mount("/system")
+-  script.UnpackPackageDir("recovery", "/system")
++  #script.UnpackPackageDir("recovery", "/system")
+   script.UnpackPackageDir("system", "/system")
+ 
+   symlinks = CopySystemFiles(input_zip, output_zip)
+@@ -411,9 +411,9 @@ def WriteFullOTAPackage(input_zip, output_zip):
+ 
+   boot_img = common.GetBootableImage("boot.img", "boot.img",
+                                      OPTIONS.input_tmp, "BOOT")
+-  recovery_img = common.GetBootableImage("recovery.img", "recovery.img",
+-                                         OPTIONS.input_tmp, "RECOVERY")
+-  MakeRecoveryPatch(OPTIONS.input_tmp, output_zip, recovery_img, boot_img)
++  #recovery_img = common.GetBootableImage("recovery.img", "recovery.img",
++  #                                       OPTIONS.input_tmp, "RECOVERY")
++  #MakeRecoveryPatch(OPTIONS.input_tmp, output_zip, recovery_img, boot_img)
+ 
+   Item.GetMetadata(input_zip)
+   Item.Get("system").SetPermissions(script)
+@@ -424,6 +424,26 @@ def WriteFullOTAPackage(input_zip, output_zip):
+ 
+   script.ShowProgress(0.2, 10)
+   script.WriteRawImage("/boot", "boot.img")
++ 
++  #print("pack uboot to OTA package...")
++  #script.Print("Update uboot...")
++  #bootloader_fex = common.GetUbootFex("bootloader.fex",OPTIONS.target_tmp+str("/bootloader.fex"))
++  #common.ZipWriteStr(output_zip, "bootloader.fex", bootloader_fex.data)
++  #script.WriteRawFex("/dev/block/nanda", "bootloader.fex")
++     
++  #env_fex = common.GetUbootFex("env.fex",OPTIONS.target_tmp+str("/env.fex"))
++  #common.ZipWriteStr(output_zip,"env.fex",env_fex.data)
++  #script.WriteRawFex("/dev/block/nandb","env.fex")
++  
++  #script.Print("Update boot1...")
++  #boot1_nand = common.GetUbootFex("boot1_nand.fex",OPTIONS.target_tmp+str("/boot1_nand.fex"))
++  #common.ZipWriteStr(output_zip,"boot1_nand.fex",boot1_nand.data)
++  #script.WriteRawFex("/dev/block/nanda","boot1_nand.fex")
++  
++  #script.Print("Update boot0...")
++  #boot0_nand = common.GetUbootFex("boot0_nand.bin",OPTIONS.target_tmp+str("/boot0_nand.bin"))
++  #common.ZipWriteStr(output_zip,"boot0_nand.bin",boot0_nand.data)
++  #script.WriteRawFex("/dev/block/nanda","boot0_nand.bin")
+ 
+   script.ShowProgress(0.1, 0)
+   device_specific.FullOTA_InstallEnd()
+@@ -433,7 +453,7 @@ def WriteFullOTAPackage(input_zip, output_zip):
+ 
+   script.UnmountAll()
+   script.AddToZip(input_zip, output_zip)
+-  WriteMetadata(metadata, output_zip)
++  #WriteMetadata(metadata, output_zip)
+ 
+ def WritePolicyConfig(file_context, output_zip):
+   f = open(file_context, 'r');
+@@ -540,6 +560,7 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
+   metadata["post-build"] = target_fp
+ 
+   script.Mount("/system")
++  #script.Mount("/bootloader")
+   script.AssertSomeFingerprint(source_fp, target_fp)
+ 
+   source_boot = common.GetBootableImage(
+@@ -556,6 +577,22 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
+       "/tmp/recovery.img", "recovery.img", OPTIONS.target_tmp, "RECOVERY")
+   updating_recovery = (source_recovery.data != target_recovery.data)
+ 
++  #source_env = common.GetUbootFex("env.fex",OPTIONS.source_tmp+str("/env.fex"))
++  #target_env = common.GetUbootFex("env.fex",OPTIONS.target_tmp+str("/env.fex"))
++  #updating_env = (source_env.data != target_env.data)
++  
++  #source_bootloader = common.GetUbootFex("bootloader.fex",OPTIONS.source_tmp+str("/bootloader.fex"))
++  #target_bootloader = common.GetUbootFex("bootloader.fex",OPTIONS.target_tmp+str("/bootloader.fex"))
++  #updating_bootloader = (source_bootloader.data != target_bootloader.data)
++
++  #source_boot0 = common.GetUbootFex("boot0_nand.bin",OPTIONS.source_tmp+str("/boot0_nand.bin"))
++  #target_boot0 = common.GetUbootFex("boot0_nand.bin",OPTIONS.target_tmp+str("/boot0_nand.bin"))
++  #updating_boot0 = (source_boot0.data != target_boot0.data)
++
++  #source_boot1 = common.GetUbootFex("boot1_nand.fex",OPTIONS.source_tmp+str("/boot1_nand.fex"))
++  #target_boot1 = common.GetUbootFex("boot1_nand.fex",OPTIONS.target_tmp+str("/boot1_nand.fex"))
++  #updating_boot1 = (source_boot1.data != target_boot1.data)
++
+   # Here's how we divide up the progress bar:
+   #  0.1 for verifying the start state (PatchCheck calls)
+   #  0.8 for applying patches (ApplyPatch calls)
+@@ -573,6 +610,14 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
+   total_verify_size = float(sum([i[2].size for i in patch_list]) + 1)
+   if updating_boot:
+     total_verify_size += source_boot.size
++  #if updating_env:
++  #  total_verify_size += source_env.size
++  #if updating_bootloader:
++  #  total_verify_size += source_bootloader.size
++  #if updating_boot1:
++  #  total_verify_size += source_boot0.size  
++  #if updating_boot0:
++  #  total_verify_size += source_boot1.size
+   so_far = 0
+ 
+   for fn, tf, sf, size, patch_sha in patch_list:
+@@ -597,6 +642,40 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
+     so_far += source_boot.size
+     script.SetProgress(so_far / total_verify_size)
+ 
++  #if updating_env:
++  #  d = common.Difference(target_env,source_env)
++  #  _, _, d = d.ComputePatch()
++  #  print "env   target:%d  source: %d  diff:%d" %(
++  #      target_env.size,source_env.size,len(d))
++
++  # common.ZipWriteStr(output_zip,"patch/env.fex.p",d)
++
++  #  env_type, env_device = common.GetTypeAndDevice("/env",OPTIONS.info_dict)
++
++  #  script.PatchCheck("%s:%s:%d:%s:%d:%s" % 
++  #                    (env_type,env_device,
++  #                     source_env.size,source_env.sha1,
++  #                     target_env.size,target_env.sha1))
++  #  so_far +=source_env.size
++  #  script.SetProgress(so_far / total_verify_size)
++  
++  #if updating_bootloader:
++  #   d = common.Difference(target_bootloader,source_bootloader)
++  #   _, _, d = d.ComputePatch()
++  #   print "bootloader   target:%d  source: %d  diff:%d" %(
++  #      target_bootloader.size,source_bootloader.size,len(d))
++
++  #   common.ZipWriteStr(output_zip,"patch/bootloader.fex.p",d)
++
++  #  bootloader_type, bootloader_device = common.GetTypeAndDevice("/bootloader",OPTIONS.info_dict)
++
++  #   script.PatchCheck("%s:%s:%d:%s:%d:%s" % 
++  #                    (bootloader_type,bootloader_device,
++  #                     source_bootloader.size,source_bootloader.sha1,
++  #                     target_bootloader.size,target_bootloader.sha1))
++  #   so_far +=source_bootloader.size
++  #   script.SetProgress(so_far / total_verify_size)
++    
+   if patch_list or updating_recovery or updating_boot:
+     script.CacheFreeSpaceCheck(largest_source_size)
+ 
+@@ -620,6 +699,10 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
+   total_patch_size = float(sum([i[1].size for i in patch_list]) + 1)
+   if updating_boot:
+     total_patch_size += target_boot.size
++  #if updating_env:
++  #  total_patch_size += target_env.size
++  #if updating_bootloader:
++  #  total_patch_size += target_bootloader.size
+   so_far = 0
+ 
+   script.Print("Patching system files...")
+@@ -651,6 +734,52 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
+   else:
+     print "boot image unchanged; skipping."
+ 
++  #if updating_env:
++  #  # Produce the env fex by applying a patch to the current
++  #  # contents of the env partition, and write it back to the
++  #  # partition.
++  #  script.Print("Patching env fex...")
++  #  script.ApplyPatch("%s:%s:%d:%s:%d:%s"
++  #                    % (env_type, env_device,
++  #                       source_env.size, source_env.sha1,
++  #                       target_env.size, target_env.sha1),
++  #                    "-",
++  #                    target_env.size, target_env.sha1,
++  #                    source_env.sha1, "patch/env.fex.p")
++  #  so_far += target_env.size
++  #  script.SetProgress(so_far / total_patch_size)
++  #  print "env fex changed; including."
++  #else:
++  #  print "env fex unchanged; skipping." 
++    
++  #if updating_bootloader:
++  #  # Produce the bootloader fex by applying a patch to the current
++  #  # contents of the env partition, and write it back to the
++  #  # partition.
++  #  script.Print("Patching bootloader fex...")
++  #  script.ApplyPatch("%s:%s:%d:%s:%d:%s"
++  #                    % (bootloader_type, bootloader_device,
++  #                       source_bootloader.size, source_bootloader.sha1,
++  #                       target_bootloader.size, target_bootloader.sha1),
++  #                    "-",
++  #                    target_bootloader.size, target_bootloader.sha1,
++  #                    source_bootloader.sha1, "patch/bootloader.fex.p")
++  #  so_far += target_bootloader.size
++  #  script.SetProgress(so_far / total_patch_size)
++  #  print "bootloader fex changed; including."
++  #else:
++  #  print "bootloader fex unchanged; skipping."
++
++  #if updating_boot1:
++  #  script.Print("Update boot1...")
++  #  common.ZipWriteStr(output_zip,"boot1_nand.fex",target_boot1.data)
++  #  script.WriteRawFex("/dev/block/nanda","boot1_nand.fex")  
++    
++  ##if updating_boot0:
++  #  #script.Print("Update boot0...")
++  #  #common.ZipWriteStr(output_zip,"boot0_nand.bin",target_boot0.data)
++  #  #script.WriteRawFex("/dev/block/nanda","boot0_nand.bin")
++    
+   if updating_recovery:
+     # Recovery is generated as a patch using both the boot image
+     # (which contains the same linux kernel as recovery) and the file

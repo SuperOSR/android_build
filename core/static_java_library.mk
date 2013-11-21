@@ -59,6 +59,8 @@ LOCAL_PROGUARD_FLAGS := $(addprefix -include ,$(proguard_options_file)) $(LOCAL_
 endif  # all_resources
 endif  # LOCAL_RESOURCE_DIR
 
+all_res_assets := $(all_resources)
+
 include $(BUILD_SYSTEM)/java_library.mk
 
 ifneq (,$(all_resources))
@@ -113,7 +115,7 @@ $(R_file_stamp): PRIVATE_MANIFEST_PACKAGE_NAME :=
 $(R_file_stamp): PRIVATE_MANIFEST_INSTRUMENTATION_FOR :=
 
 $(R_file_stamp) : $(all_resources) $(full_android_manifest) $(AAPT) $(framework_res_package_export_deps)
-	@echo -e ${CL_YLW}"target R.java/Manifest.java:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
+	@echo "target R.java/Manifest.java: $(PRIVATE_MODULE) ($@)"
 	$(create-resource-java-files)
 	$(hide) find $(PRIVATE_SOURCE_INTERMEDIATES_DIR) -name R.java | xargs cat > $@
 
@@ -124,4 +126,6 @@ endif
 
 endif  # $(all_resources) not empty
 
+# Reset internal variables.
+all_res_assets :=
 LOCAL_IS_STATIC_JAVA_LIBRARY :=

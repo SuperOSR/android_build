@@ -131,10 +131,7 @@ LOCAL_BUILT_MODULE_STEM := package.apk
 LOCAL_PROGUARD_ENABLED:=$(strip $(LOCAL_PROGUARD_ENABLED))
 ifndef LOCAL_PROGUARD_ENABLED
 ifneq ($(DISABLE_PROGUARD),true)
-ifneq ($(filter user userdebug, $(TARGET_BUILD_VARIANT)),)
-    # turn on Proguard by default for user & userdebug build
     LOCAL_PROGUARD_ENABLED :=full
-endif
 endif
 endif
 ifeq ($(LOCAL_PROGUARD_ENABLED),disabled)
@@ -156,7 +153,7 @@ ifeq (,$(TARGET_BUILD_APPS))
 ifeq (,$(LOCAL_APK_LIBRARIES))
 ifneq (,$(LOCAL_SRC_FILES))
 ifndef LOCAL_DEX_PREOPT
-LOCAL_DEX_PREOPT := true
+LOCAL_DEX_PREOPT := $(DEX_PREOPT_DEFAULT)
 endif
 endif
 endif
@@ -237,7 +234,7 @@ $(R_file_stamp): PRIVATE_RESOURCE_PUBLICS_OUTPUT := \
 			$(intermediates.COMMON)/public_resources.xml
 $(R_file_stamp): PRIVATE_PROGUARD_OPTIONS_FILE := $(proguard_options_file)
 $(R_file_stamp): $(all_res_assets) $(full_android_manifest) $(RenderScript_file_stamp) $(AAPT) | $(ACP)
-	@echo -e ${CL_YLW}"target R.java/Manifest.java:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
+	@echo "target R.java/Manifest.java: $(PRIVATE_MODULE) ($@)"
 	@rm -f $@
 	$(create-resource-java-files)
 	$(hide) for GENERATED_MANIFEST_FILE in `find $(PRIVATE_SOURCE_INTERMEDIATES_DIR) \
@@ -269,7 +266,7 @@ $(R_file_stamp): $(resource_export_package)
 $(resource_export_package): PRIVATE_PRODUCT_AAPT_CONFIG :=
 $(resource_export_package): PRIVATE_PRODUCT_AAPT_PREF_CONFIG :=
 $(resource_export_package): $(all_res_assets) $(full_android_manifest) $(RenderScript_file_stamp) $(AAPT)
-	@echo -e ${CL_GRN}"target Export Resources:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
+	@echo "target Export Resources: $(PRIVATE_MODULE) ($@)"
 	$(create-empty-package)
 	$(add-assets-to-package)
 endif
@@ -411,7 +408,7 @@ else
     $(LOCAL_BUILT_MODULE): PRIVATE_PRODUCT_AAPT_PREF_CONFIG := $(PRODUCT_AAPT_PREF_CONFIG)
 endif
 $(LOCAL_BUILT_MODULE): $(all_res_assets) $(jni_shared_libraries) $(full_android_manifest)
-	@echo -e ${CL_GRN}"target Package:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
+	@echo "target Package: $(PRIVATE_MODULE) ($@)"
 	$(create-empty-package)
 	$(add-assets-to-package)
 ifneq ($(jni_shared_libraries),)
@@ -483,3 +480,6 @@ lint-$(LOCAL_PACKAGE_NAME) :
 lintall : lint-$(LOCAL_PACKAGE_NAME)
 
 endif # skip_definition
+
+# Reset internal variables.
+all_res_assets :=

@@ -287,40 +287,29 @@ def BuildBootableImage(sourcedir, fs_config_file, info_dict=None):
   assert p1.returncode == 0, "mkbootfs of %s ramdisk failed" % (targetname,)
   assert p2.returncode == 0, "minigzip of %s ramdisk failed" % (targetname,)
 
-  """check if uboot is requested"""
-  fn = os.path.join(sourcedir, "ubootargs")
+  cmd = ["mkbootimg", "--kernel", os.path.join(sourcedir, "kernel")]
+
+  fn = os.path.join(sourcedir, "cmdline")
   if os.access(fn, os.F_OK):
-    cmd = ["mkimage"]
-    for argument in open(fn).read().rstrip("\n").split(" "):
-      cmd.append(argument)
-    cmd.append("-d")
-    cmd.append(os.path.join(sourcedir, "kernel")+":"+ramdisk_img.name)
-    cmd.append(img.name)
+    cmd.append("--cmdline")
+    cmd.append(open(fn).read().rstrip("\n"))
 
-  else:
-    cmd = ["mkbootimg", "--kernel", os.path.join(sourcedir, "kernel")]
+  fn = os.path.join(sourcedir, "base")
+  if os.access(fn, os.F_OK):
+    cmd.append("--base")
+    cmd.append(open(fn).read().rstrip("\n"))
 
-    fn = os.path.join(sourcedir, "cmdline")
-    if os.access(fn, os.F_OK):
-      cmd.append("--cmdline")
-      cmd.append(open(fn).read().rstrip("\n"))
+  fn = os.path.join(sourcedir, "pagesize")
+  if os.access(fn, os.F_OK):
+    cmd.append("--pagesize")
+    cmd.append(open(fn).read().rstrip("\n"))
 
-    fn = os.path.join(sourcedir, "base")
-    if os.access(fn, os.F_OK):
-      cmd.append("--base")
-      cmd.append(open(fn).read().rstrip("\n"))
+  args = info_dict.get("mkbootimg_args", None)
+  if args and args.strip():
+    cmd.extend(args.split())
 
-    fn = os.path.join(sourcedir, "pagesize")
-    if os.access(fn, os.F_OK):
-      cmd.append("--pagesize")
-      cmd.append(open(fn).read().rstrip("\n"))
-
-    args = info_dict.get("mkbootimg_args", None)
-    if args and args.strip():
-      cmd.extend(args.split())
-
-    cmd.extend(["--ramdisk", ramdisk_img.name,
-                "--output", img.name])
+  cmd.extend(["--ramdisk", ramdisk_img.name,
+              "--output", img.name])
 
   p = Run(cmd, stdout=subprocess.PIPE)
   p.communicate()
@@ -343,13 +332,7 @@ def GetBootableImage(name, prebuilt_name, unpack_dir, tree_subdir,
   'prebuilt_name', otherwise construct it from the source files in
   'unpack_dir'/'tree_subdir'."""
 
-  prebuilt_dir = os.path.join(unpack_dir, "BOOTABLE_IMAGES")
-  prebuilt_path = os.path.join(prebuilt_dir, prebuilt_name)
-  custom_bootimg_mk = os.getenv('MKBOOTIMG')
-  if custom_bootimg_mk:
-    bootimage_path = os.path.join(os.getenv('OUT'), "boot.img")
-    os.mkdir(prebuilt_dir)
-    shutil.copyfile(bootimage_path, prebuilt_path)
+  prebuilt_path = os.path.join(unpack_dir, "BOOTABLE_IMAGES", prebuilt_name)
   if os.path.exists(prebuilt_path):
     print "using prebuilt %s..." % (prebuilt_name,)
     return File.FromLocalFile(name, prebuilt_path)
@@ -360,7 +343,13 @@ def GetBootableImage(name, prebuilt_name, unpack_dir, tree_subdir,
                                          os.path.join(unpack_dir, fs_config),
                                          info_dict))
 
-
+def GetUbootFex(name,path):
+    print "  building fex from target_files %s..." %(path)
+    fex=open(path)
+    data=fex.read()
+    fex.close()
+    return File(name,data)
+    
 def UnzipTemp(filename, pattern=None):
   """Unzip the given archive into a temporary directory and return the name.
 
@@ -962,14 +951,8 @@ def ComputeDifferences(diffs):
 
 
 # map recovery.fstab's fs_types to mount/format "partition types"
-PARTITION_TYPES = { "bml": "BML",
-                    "ext2": "EMMC",
-                    "ext3": "EMMC",
-                    "ext4": "EMMC",
-                    "emmc": "EMMC",
-                    "mtd": "MTD",
-                    "yaffs2": "MTD",
-                    "vfat": "EMMC" }
+PARTITION_TYPES = { "yaffs2": "MTD", "mtd": "MTD",
+                    "ext4": "EMMC", "emmc": "EMMC","vfat": "EMMC" }
 
 def GetTypeAndDevice(mount_point, info):
   fstab = info["fstab"]

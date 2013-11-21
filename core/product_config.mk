@@ -184,21 +184,10 @@ ifneq ($(strip $(TARGET_BUILD_APPS)),)
 all_product_configs := $(call get-product-makefiles,\
     $(SRC_TARGET_DIR)/product/AndroidProducts.mk)
 else
-ifneq ($(OSR_BUILD),)
-    all_product_configs := $(shell ls device/*/$(OSR_BUILD)/osr.mk)
-else
-
-ifneq ($(CM_BUILD),)
-    all_product_configs := $(shell ls device/*/$(CM_BUILD)/cm.mk)
-  else
-    # Read in all of the product definitions specified by the AndroidProducts.mk
-    # files in the tree.
-    all_product_configs := $(get-all-product-makefiles)
-  endif # CM_BUILD
+# Read in all of the product definitions specified by the AndroidProducts.mk
+# files in the tree.
+all_product_configs := $(get-all-product-makefiles)
 endif
-endif
-
-ifeq ($(CM_BUILD),$(OSR_BUILD),)
 
 # Find the product config makefile for the current product.
 # all_product_configs consists items like:
@@ -218,17 +207,11 @@ $(foreach f, $(all_product_configs),\
         $(eval all_product_makefiles += $(f))\
         $(if $(filter $(TARGET_PRODUCT),$(basename $(notdir $(f)))),\
             $(eval current_product_makefile += $(f)),)))
-
 _cpm_words :=
 _cpm_word1 :=
 _cpm_word2 :=
-else
-    current_product_makefile := $(strip $(all_product_configs))
-    all_product_makefiles := $(strip $(all_product_configs))
-endif
 current_product_makefile := $(strip $(current_product_makefile))
 all_product_makefiles := $(strip $(all_product_makefiles))
-
 
 ifneq (,$(filter product-graph dump-products, $(MAKECMDGOALS)))
 # Import all product makefiles.
@@ -262,6 +245,31 @@ endif
 current_product_makefile :=
 all_product_makefiles :=
 all_product_configs :=
+
+
+#############################################################################
+# TODO: Remove this hack once only 1 runtime is left.
+# Include the runtime product makefile based on the product's PRODUCT_RUNTIMES
+$(call clear-var-list, $(_product_var_list))
+
+# Set PRODUCT_RUNTIMES, allowing buildspec to override using OVERRIDE_RUNTIMES
+product_runtimes := $(sort $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_RUNTIMES))
+ifneq ($(OVERRIDE_RUNTIMES),)
+  $(info Overriding PRODUCT_RUNTIMES=$(product_runtimes) with $(OVERRIDE_RUNTIMES))
+  product_runtimes := $(OVERRIDE_RUNTIMES)
+endif
+$(foreach runtime, $(product_runtimes), $(eval include $(SRC_TARGET_DIR)/product/$(runtime).mk))
+$(foreach v, $(_product_var_list), $(if $($(v)),\
+    $(eval PRODUCTS.$(INTERNAL_PRODUCT).$(v) += $(sort $($(v))))))
+
+$(call clear-var-list, $(_product_var_list))
+# Now we can assign to PRODUCT_RUNTIMES
+PRODUCT_RUNTIMES := $(product_runtimes)
+product_runtimes :=
+#############################################################################
+
+# A list of module names of BOOTCLASSPATH (jar files)
+PRODUCT_BOOT_JARS := $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_BOOT_JARS)
 
 # Find the device that this product maps to.
 TARGET_DEVICE := $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_DEVICE)
@@ -344,12 +352,6 @@ endif
 # The optional :<owner> is used to indicate the owner of a vendor file.
 PRODUCT_COPY_FILES := \
     $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_COPY_FILES))
-_boot_animation := $(strip $(lastword $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_BOOTANIMATION)))
-ifneq ($(_boot_animation),)
-PRODUCT_COPY_FILES += \
-    $(_boot_animation):system/media/bootanimation.zip
-endif
-_boot_animation :=
 
 # A list of property assignments, like "key = value", with zero or more
 # whitespace characters on either side of the '='.
@@ -361,9 +363,6 @@ PRODUCT_PROPERTY_OVERRIDES := \
 # used for adding properties to default.prop
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES := \
     $(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_DEFAULT_PROPERTY_OVERRIDES))
-
-PRODUCT_BUILD_PROP_OVERRIDES := \
-	$(strip $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_BUILD_PROP_OVERRIDES))
 
 # Should we use the default resources or add any product specific overlays
 PRODUCT_PACKAGE_OVERLAYS := \

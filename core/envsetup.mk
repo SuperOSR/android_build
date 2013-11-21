@@ -55,10 +55,12 @@ endif
 # BUILD_OS is the real host doing the build.
 BUILD_OS := $(HOST_OS)
 
-# If USE_MINGW is set, we change HOST_OS to Windows to build the
+# Under Linux, if USE_MINGW is set, we change HOST_OS to Windows to build the
 # Windows SDK. Only a subset of tools and SDK will manage to build properly.
+ifeq ($(HOST_OS),linux)
 ifneq ($(USE_MINGW),)
 	HOST_OS := windows
+endif
 endif
 
 ifeq ($(HOST_OS),)
@@ -137,11 +139,7 @@ endif
 
 ifeq (,$(strip $(OUT_DIR)))
 ifeq (,$(strip $(OUT_DIR_COMMON_BASE)))
-ifneq ($(TOPDIR),)
 OUT_DIR := $(TOPDIR)out
-else
-OUT_DIR := $(CURDIR)/out
-endif
 else
 OUT_DIR := $(OUT_DIR_COMMON_BASE)/$(notdir $(PWD))
 endif
@@ -171,8 +169,7 @@ TARGET_COMMON_OUT_ROOT := $(TARGET_OUT_ROOT)/common
 HOST_COMMON_OUT_ROOT := $(HOST_OUT_ROOT)/common
 
 PRODUCT_OUT := $(TARGET_PRODUCT_OUT_ROOT)/$(TARGET_DEVICE)
-PRODUCT_ROM_FILE := $(TEAM_PRODUCT)-$(ANDROID_ALIAS_NAME)-$(TARGET_DEVICE)-$(OSR_VERSION)
-ALIAS := $(TARGET_DEVICE)
+
 OUT_DOCS := $(TARGET_COMMON_OUT_ROOT)/docs
 
 BUILD_OUT_EXECUTABLES:= $(BUILD_OUT)/bin
@@ -199,6 +196,7 @@ TARGET_OUT_OPTIONAL_EXECUTABLES:= $(TARGET_OUT)/xbin
 TARGET_OUT_SHARED_LIBRARIES:= $(TARGET_OUT)/lib
 TARGET_OUT_JAVA_LIBRARIES:= $(TARGET_OUT)/framework
 TARGET_OUT_APPS:= $(TARGET_OUT)/app
+TARGET_OUT_APPS_PRIVILEGED := $(TARGET_OUT)/priv-app
 TARGET_OUT_KEYLAYOUT := $(TARGET_OUT)/usr/keylayout
 TARGET_OUT_KEYCHARS := $(TARGET_OUT)/usr/keychars
 TARGET_OUT_ETC := $(TARGET_OUT)/etc
@@ -214,6 +212,7 @@ TARGET_OUT_DATA_KEYLAYOUT := $(TARGET_OUT_KEYLAYOUT)
 TARGET_OUT_DATA_KEYCHARS := $(TARGET_OUT_KEYCHARS)
 TARGET_OUT_DATA_ETC := $(TARGET_OUT_ETC)
 TARGET_OUT_DATA_NATIVE_TESTS := $(TARGET_OUT_DATA)/nativetest
+TARGET_OUT_DATA_FAKE := $(TARGET_OUT_DATA)/fake_packages
 
 TARGET_OUT_CACHE := $(PRODUCT_OUT)/cache
 
