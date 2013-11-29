@@ -82,6 +82,14 @@ GRANDFATHERED_ALL_PREBUILT := \
 	suplcerts.bks \
 	svc \
 	tcmd \
+	hosts \
+	ueventd.rc \
+	sbin \
+	data \
+	dev \
+	proc \
+	sys \
+	system \
 	ueventd.goldfish.rc \
 	ueventd.olympus.rc \
 	ueventd.stingray.rc \
