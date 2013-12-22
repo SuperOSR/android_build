@@ -393,6 +393,17 @@ video.with-shadow {
   #nav li ul.tree-list-children ul {
     display:block; }
 
+#nav.samples-nav li li li {
+  font-size:13px;
+}
+#nav.samples-nav li li li a {
+  padding-top:3px;
+  padding-bottom:3px;
+}
+#nav.samples-nav li li ul > li:last-child {
+  padding-bottom:3px;
+}
+
 .new,
 .new-child {
   font-size: .78em;
@@ -860,7 +871,40 @@ scroll top left;
   .framed-nexus4-port-216 img {
     width: 216px;
     height: 360px; }
+    
+.framed-nexus5-port-span-5 {
+  background: transparent url(../images/styles/device_nexus5_blank_port_span5.png) no-repeat
+  scroll top left;
+  padding: 52px 33px 69px 31px;
+  overflow: hidden;
+}
 
+.framed-nexus5-port-span-5,
+.framed-nexus5-port-span-5 video,
+.framed-nexus5-port-span-5 img {
+  width: 216px;
+  height: 384px;
+}
+
+.framed-nexus5-land-span-13 {
+  background: transparent url(../images/styles/device_nexus5_blank_land_span13.png) no-repeat scroll top left;
+  padding: 36px 119px 54px 108px;
+  overflow: hidden;
+}
+
+.framed-nexus5-land-span-13,
+.framed-nexus5-land-span-13 video,
+.framed-nexus5-land-span-13 img {
+  width: 533px;
+  height: 300px;
+}
+
+.framed-nexus5-port-span-5,
+.framed-nexus5-port-span-5 video,
+.framed-nexus5-port-span-5 img {
+  width: 216px;
+  height: 384px;
+}
 
 /* landing page disclosures */
 .landing-page-link {
@@ -2105,16 +2149,15 @@ pre {
   border: solid 1px #ddd;
   background: #f7f7f7;
 }
-.str { color: #080; }
+.str { color: #800; } /* Code string */
 .kwd { color: #008; }
-.com { color: #800; }
 .typ { color: #606; }
 .lit { color: #066; }
 .pun { color: #660; }
 .pln { color: #000; }
 .tag { color: #008; }
 .atn { color: #828; }
-.atv { color: #080; }
+.atv { color: #800; } /* XML string */
 .dec { color: #606; }
 
 /* --------------------------------------------------------------------------
@@ -2464,6 +2507,169 @@ pre#codesample-block {
   overflow:visible;
   background:transparent;
   border:none;
+}
+pre#codesample-block .code-line:hover {
+  background:#e7e7e7;
+}
+pre#codesample-line-numbers {
+  float:left;
+  width:2em;
+  background:transparent;
+  border:none;
+  border-right:1px solid #ccc;
+  padding-left:0;
+  font-family:monospace;
+  text-align:right;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: -moz-none;
+  -ms-user-select: none;
+  user-select: none;
+}
+pre#codesample-line-numbers a {
+  color:#999;
+}
+pre#codesample-line-numbers.hidden {
+  display:none;
+}
+pre#codesample-block span.code-line {
+  width:100%;
+  display:inline-block;
+}
+
+.structure-dir {
+background-image:url(../../assets/images/folder.png);
+background-repeat:no-repeat;
+background-position:16px 2px;
+  margin:.25em 0 0 0;
+  padding:0 0 0 0;
+}
+
+.structure-toggleme {
+  margin:0 0 0 3em;
+  padding:0 0 0 0;
+  text-decoration:none;
+}
+
+.structure-java{
+background-image:url(../../assets/images/file-java.png);
+background-repeat:no-repeat;
+background-position:0px 2px;
+  margin:.3em 0 0 0;
+  padding:.3em 0 .3em 22px;
+}
+
+.structure-file {
+background-image:url(../../assets/images/file-generic.png);
+background-repeat:no-repeat;
+background-position:0px 2px;
+  margin:.3em 0 0 0;
+  padding:.3em 0 .3em 22px;
+}
+
+.structure-xml {
+background-image:url(../../assets/images/file-xml.png);
+background-repeat:no-repeat;
+background-position:0px 2px;
+  margin:.3em 0 0 0;
+  padding:.3em 0 .25em 22px;
+}
+
+.structure-img {
+background-image:url(../../assets/images/file-image.png);
+background-repeat:no-repeat;
+background-position:0px 2px;
+  margin:.3em 0 0 0;
+  padding:.3em 0 .25em 22px;
+}
+
+.structure-manifest {
+background-image:url(../../assets/images/file-manifest.png);
+background-repeat:no-repeat;
+  margin:.0 0 0 1.25em;
+  padding:0 0 0 22px;
+  text-decoration:none;
+}
+
+#jd-content .structure-toggle-img {
+  margin:.5em 0 0 0;
+padding-right:2.1em;
+}
+
+.dirInfo {
+  margin-left:2em;
+}
+
+.structure-dir a {
+  text-decoration:none;
+}
+
+.structure-manifest a {
+  text-decoration: none;
+}
+.structure-file a {
+  text-decoration: none;
+}
+
+.sampleEmbed {
+  background-color:rgb(249, 249, 249);
+}
+
+.sampleEmbed ol.lineNumbers {
+  list-style-type: decimal;
+  padding-left:1em;
+}
+
+.sampleEmbed ol.lineNumbers li {
+border-left:1px solid #ddd;
+border-right:1px solid #ddd;
+color:gray;
+background-color:#f7f7f7;
+margin:0 0 0 24px;
+padding: 2px 2px 2px 6px;
+}
+
+.sampleEmbed ol.lineNumbers li:hover {
+background: #efefef;
+}
+
+.samples-nav li a {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+Styles for raw formatted line numbers (not used with listformatted version)
+div.sampleLine div.lineNumber {
+  display: inline;
+}
+div.sampleLine div.lineCode {
+  display: inline;
+  padding-left:6px;
+}
+div.sampleLine {
+  padding:0;
+  margin:0;
+}*/
+
+/* --------------------------------------------------------------------------
+Styles for samples project trees and code browsing in resources tab 
+*/
+
+#codesample-wrapper {
+  width:100000px; /* super wide to contain floats, but doesn't cause scroll */
+  overflow:visible;
+}
+pre#codesample-block {
+  float:left;
+  overflow:visible;
+  background:transparent;
+  border:none;
+}
+pre#codesample-block a.number {
+  display:none;
 }
 pre#codesample-block .code-line:hover {
   background:#e7e7e7;
